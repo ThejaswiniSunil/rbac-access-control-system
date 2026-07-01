@@ -3,18 +3,18 @@ from pathlib import Path
 import os
 import pandas as pd
 from collections import defaultdict
-from langchain.schema import Document
+from langchain_core.documents import Document
 import sqlite3
 
-
-from langchain_community.document_loaders import UnstructuredMarkdownLoader
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_community.vectorstores import Chroma
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_chroma import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_groq import ChatGroq
-from langchain.prompts import ChatPromptTemplate
-from langchain.chains.combine_documents import create_stuff_documents_chain
-from langchain.chains import create_retrieval_chain
+from langchain_cohere import CohereRerank
+from langchain_classic.retrievers.contextual_compression import ContextualCompressionRetriever
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_classic.chains.combine_documents import create_stuff_documents_chain
+from langchain_classic.chains import create_retrieval_chain
 
 from .secret_key import langchain_key, cohere_api_key, groq_api_key
 
@@ -44,14 +44,9 @@ def embed_documents_to_vectorstore(docs):
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
     splits = text_splitter.split_documents(docs)
     vectorstore.add_documents(splits)
-    
+
     print("Documents embedded and saved to vectorstore.")
     print("Total documents:", len(vectorstore.get()["documents"]))
-    #print("Chunks being added:")
-    #for chunk in splits:
-    #    print(f"---\n{chunk.page_content[:150]}...\nMetadata: {chunk.metadata}")
-
-
 
 
 def load_file(filepath, role):
@@ -68,7 +63,7 @@ def load_file(filepath, role):
                         metadata={"role": role.lower(), "source": Path(filepath).name}
                     )
                 )
-            return documents  # Return a list of documents
+            return documents
 
         elif ext == ".md":
             with open(filepath, "r", encoding="utf-8") as f:
@@ -91,7 +86,7 @@ def run_indexer():
     conn = sqlite3.connect("roles_docs.db")
     c = conn.cursor()
     c.execute("SELECT id, filepath, role FROM documents WHERE embedded = 0")
-    
+
     all_docs = []
 
     for doc_id, path, role in c.fetchall():
@@ -102,7 +97,6 @@ def run_indexer():
             else:
                 all_docs.append(docs)
 
-            # Mark this file as embedded
             c.execute("UPDATE documents SET embedded = 1 WHERE id = ?", (doc_id,))
 
     if all_docs:
@@ -147,29 +141,25 @@ question_answering_chain = create_stuff_documents_chain(model, chat_prompt)
 # Add a Reranker
 # ==============================
 def wrap_with_reranker(retriever, cohere_api_key, top_n=4):
-    #print("[INFO] Using Cohere reranker.")
     reranker = CohereRerank(cohere_api_key=cohere_api_key, top_n=top_n)
     return ContextualCompressionRetriever(
         base_compressor=reranker,
         base_retriever=retriever
     )
 
-def get_rag_chain(user_role: str,cohere_api_key: str = None):
+def get_rag_chain(user_role: str, cohere_api_key: str = None):
     user_role = user_role.lower()
 
     if user_role == "c-level":
-        # C-level sees everything
         retriever = vectorstore.as_retriever(search_kwargs={"k": 4})
 
     elif user_role == "general":
-        # General role sees only general documents
         retriever = vectorstore.as_retriever(search_kwargs={
             "k": 4,
             "filter": {"role": "general"}
         })
 
     else:
-        # All other roles see their docs + general
         retriever = vectorstore.as_retriever(search_kwargs={
             "k": 4,
             "filter": {
@@ -177,40 +167,9 @@ def get_rag_chain(user_role: str,cohere_api_key: str = None):
             }
         })
 
-    # wrap with reranker
     if cohere_api_key:
         print("Using cohere reranker")
         retriever = wrap_with_reranker(retriever, cohere_api_key)
 
     return create_retrieval_chain(retriever, question_answering_chain)
-    """
-    from langchain_core.runnables import RunnableLambda, RunnableMap
-
-    extract_input = RunnableLambda(lambda x: x["input"])
-
-    return RunnableMap({
-        "context": extract_input | retriever,
-        "answer": extract_input | retriever | question_answering_chain
-    })"""
-
-
-"""
-# ========== MAIN EXECUTION ==========
-if __name__ == "__main__":
-    run_indexer() 
-"""
-    # ========== EXAMPLE USAGE ==========
-"""
-    user_role = "hr" 
-    rag_chain = get_rag_chain(user_role)
-
-    
-    query = "give me Campaign Highlights from marketing summary."
-    response = rag_chain.invoke({"input": query})
-
-    print((response["answer"]))
-    for doc in response.get("context", []):
-        print(f"Source: {doc.metadata['source']}, Role: {doc.metadata.get('role')}")
-
-"""
 
