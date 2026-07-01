@@ -5,6 +5,7 @@ from openai import OpenAI
 import sqlite3
 import os
 from pathlib import Path
+from .secret_key import groq_api_key
 
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 DB_PATH = os.path.join(BASE_DIR, "roles_docs.db")
@@ -13,8 +14,8 @@ DB_PATH = os.path.join(BASE_DIR, "roles_docs.db")
 DUCKDB_FILE = "static/data/structured_queries.duckdb"
 duck_conn = duckdb.connect(DUCKDB_FILE, read_only=False)
 
-# OpenAI setup
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+# Groq setup (OpenAI-compatible endpoint)
+client = OpenAI(api_key=groq_api_key, base_url="https://api.groq.com/openai/v1")
 
 def get_allowed_tables_for_role(role: str) -> list[str]:
     if role.lower() == "c-level":
@@ -97,7 +98,7 @@ def translate_nl_to_sql(question: str, allowed_tables: list[str]) -> str:
 
     try:
         response = client.chat.completions.create(
-            model="gpt-4",
+            model="llama-3.3-70b-versatile",
             messages=[{"role": "user", "content": prompt}],
             temperature=0
         )
