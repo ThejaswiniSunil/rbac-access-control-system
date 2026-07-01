@@ -4,7 +4,6 @@ uvicorn
 openai
 langchain
 chromadb
-sqlite3  # builtin
 passlib[bcrypt]
 pandas
 python-dotenv
