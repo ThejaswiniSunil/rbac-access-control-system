@@ -9,7 +9,6 @@ from fastapi import FastAPI, UploadFile,File, Form, HTTPException, Depends
 from fastapi import BackgroundTasks
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.responses import JSONResponse
-from langchain_community.embeddings.openai import OpenAIEmbeddings
 from dotenv import load_dotenv
 from passlib.hash import bcrypt
 from langchain_core.documents import Document
