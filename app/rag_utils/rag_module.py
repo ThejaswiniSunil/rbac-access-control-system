@@ -10,13 +10,13 @@ import sqlite3
 from langchain_community.document_loaders import UnstructuredMarkdownLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
-from langchain_openai import OpenAIEmbeddings
-from langchain_openai import ChatOpenAI
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_groq import ChatGroq
 from langchain.prompts import ChatPromptTemplate
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain.chains import create_retrieval_chain
 
-from .secret_key import openapi_key,langchain_key,cohere_api_key
+from .secret_key import langchain_key, cohere_api_key, groq_api_key
 
 
 
@@ -24,7 +24,7 @@ os.environ["LANGCHAIN_TRACING_V2"] = "true"
 os.environ["LANGCHAIN_ENDPOINT"] = "https://api.smith.langchain.com"
 os.environ["LANGCHAIN_PROJECT"] = "RAG"
 os.environ["LANGCHAIN_API_KEY"] = langchain_key
-os.environ["OPENAI_API_KEY"] = openapi_key
+os.environ["GROQ_API_KEY"] = groq_api_key
 os.environ["COHERE_API_KEY"] = cohere_api_key
 
 
@@ -32,7 +32,7 @@ os.environ["COHERE_API_KEY"] = cohere_api_key
 # ====Split,load,embed==========
 # ==============================
 
-openai_embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
+openai_embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
 vectorstore = Chroma(
     collection_name="my_collection",
     persist_directory="chroma_db",
@@ -136,8 +136,8 @@ chat_prompt = ChatPromptTemplate.from_messages([
 # ==============================
 # ========== MODEL ==========
 # ==============================
-model = ChatOpenAI(
-    model="gpt-4o",  
+model = ChatGroq(
+    model="llama-3.3-70b-versatile",
     temperature=0.2
 )
 
