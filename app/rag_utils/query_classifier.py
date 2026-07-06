@@ -1,4 +1,4 @@
-from openai import OpenAI
+﻿from openai import OpenAI
 import os
 from .secret_key import groq_api_key
 

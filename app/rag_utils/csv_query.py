@@ -1,4 +1,4 @@
-import re
+﻿import re
 import duckdb
 import os,tabulate
 from openai import OpenAI
@@ -10,11 +10,9 @@ from .secret_key import groq_api_key
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 DB_PATH = os.path.join(BASE_DIR, "roles_docs.db")
 
-# DuckDB setup
 DUCKDB_FILE = "static/data/structured_queries.duckdb"
 duck_conn = duckdb.connect(DUCKDB_FILE, read_only=False)
 
-# Groq setup (OpenAI-compatible endpoint)
 client = OpenAI(api_key=groq_api_key, base_url="https://api.groq.com/openai/v1")
 
 def get_allowed_tables_for_role(role: str) -> list[str]:
@@ -32,7 +30,6 @@ def get_allowed_tables_for_role(role: str) -> list[str]:
         return [row[0] for row in duck_conn.execute(query, [role]).fetchall()]
 
 def extract_tables_from_sql(sql: str) -> list[str]:
-    # Extract tables used in FROM and JOIN clauses
     return re.findall(r'FROM\s+(\w+)|JOIN\s+(\w+)', sql, flags=re.IGNORECASE)
 
 def flatten_matches(matches: list[tuple]) -> list[str]:
@@ -50,7 +47,6 @@ def translate_nl_to_sql(question: str, allowed_tables: list[str]) -> str:
     print("Using DB path:", DB_PATH)
     cur = conn.cursor()
 
-    # fetch headers from table
     cur.execute("""
         SELECT filename, headers_str FROM documents 
         WHERE embedded = 1 AND headers_str IS NOT NULL
@@ -69,15 +65,13 @@ def translate_nl_to_sql(question: str, allowed_tables: list[str]) -> str:
             print(cols)
             schemas.append(f"Table: {table_name}\nColumns: {cols}")
         except Exception as e:
-            print(f"❌ Error while building schema for {filename}: {e}")
-
+            print(f"Error while building schema for {filename}: {e}")
 
     print("Schemas:", schemas)
 
     schema_block = "\n\n".join(schemas)
     print("schema_block:\n", schema_block)
 
-    # Prompt for LLM
     prompt = f"""
     You are an assistant that converts natural language questions into safe SQL SELECT queries.
 
@@ -103,19 +97,14 @@ def translate_nl_to_sql(question: str, allowed_tables: list[str]) -> str:
             temperature=0
         )
         print("LLM call successful")
-        
         response_text = response.choices[0].message.content.strip()
-        
         print("Raw SQL from LLM:\n", response_text)
-
         return response_text
-        #return response.choices[0].message.content.strip()
 
     except Exception as e:
-        print("❌ LLM call failed:", e)
+        print("LLM call failed:", e)
         return "Error generating SQL"
 
-#async def ask_csv(question: str, role: str) -> dict:
 async def ask_csv(question: str, role: str, username: str, return_sql: bool = False) -> dict:
     allowed_tables = get_allowed_tables_for_role(role)
 
@@ -148,4 +137,4 @@ async def ask_csv(question: str, role: str, username: str, return_sql: bool = Fa
         return response
 
     except Exception as e:
-        return {"answer": f"❌ Error: {str(e)}", "error": True}
+        return {"answer": f"Error: {str(e)}", "error": True}

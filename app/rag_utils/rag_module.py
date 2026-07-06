@@ -1,4 +1,4 @@
-# ========== CONFIG ==========
+﻿# ========== CONFIG ==========
 from pathlib import Path
 import os
 import pandas as pd
@@ -27,10 +27,6 @@ os.environ["LANGCHAIN_API_KEY"] = langchain_key
 os.environ["GROQ_API_KEY"] = groq_api_key
 os.environ["COHERE_API_KEY"] = cohere_api_key
 
-
-# ==============================
-# ====Split,load,embed==========
-# ==============================
 
 openai_embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
 vectorstore = Chroma(
@@ -107,9 +103,6 @@ def run_indexer():
     print(f"Indexed {len(all_docs)} document chunks.")
 
 
-# ==============================
-# ========== PROMPT TEMPLATE ==========
-# ==============================
 system_prompt = (
     "You are an assistant for summarizing and answering queries from internal company documents.\n"
     "Always use the retrieved context to answer the query, even if partial.\n"
@@ -127,9 +120,6 @@ chat_prompt = ChatPromptTemplate.from_messages([
     ("human", "{input}"),
 ])
 
-# ==============================
-# ========== MODEL ==========
-# ==============================
 model = ChatGroq(
     model="llama-3.3-70b-versatile",
     temperature=0.2
@@ -137,9 +127,6 @@ model = ChatGroq(
 
 question_answering_chain = create_stuff_documents_chain(model, chat_prompt)
 
-# ==============================
-# Add a Reranker
-# ==============================
 def wrap_with_reranker(retriever, cohere_api_key, top_n=4):
     reranker = CohereRerank(cohere_api_key=cohere_api_key, top_n=top_n)
     return ContextualCompressionRetriever(
@@ -172,4 +159,3 @@ def get_rag_chain(user_role: str, cohere_api_key: str = None):
         retriever = wrap_with_reranker(retriever, cohere_api_key)
 
     return create_retrieval_chain(retriever, question_answering_chain)
-
