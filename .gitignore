@@ -1,2 +1,6 @@
 
 secret_key.py
+
+__pycache__/
+chroma_db/
+roles_docs.db
